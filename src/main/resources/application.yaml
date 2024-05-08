@@ -1,0 +1,18 @@
+compiler:
+  directory: ${COMPILER_BASE_DIR:../compiler}
+  language-ext:
+    java: java
+    python: py
+    c: c
+  output-ext: txt
+  languages:
+    java:
+      - "17"
+    python:
+      - "3.10.0"
+    c:
+      - "17"
+
+
+cron:
+  expr: ${COMPILER_CRON_EXP:*/10 * * * * *}

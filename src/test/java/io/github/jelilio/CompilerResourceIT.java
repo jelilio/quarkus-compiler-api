@@ -3,6 +3,6 @@ package io.github.jelilio;
 import io.quarkus.test.junit.QuarkusIntegrationTest;
 
 @QuarkusIntegrationTest
-class GreetingResourceIT extends GreetingResourceTest {
+class CompilerResourceIT extends CompilerResourceTest {
     // Execute the same tests but in packaged mode.
 }
