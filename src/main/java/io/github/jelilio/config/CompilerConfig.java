@@ -9,6 +9,7 @@ import java.util.Map;
 public interface CompilerConfig {
   String directory();
   String outputExt();
+  List<String> othersExt();
   Map<String, String> languageExt();
   Map<String, List<String>> languages();
 }

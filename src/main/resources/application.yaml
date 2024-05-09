@@ -5,6 +5,8 @@ compiler:
     python: py
     c: c
   output-ext: txt
+  others-ext:
+    - out
   languages:
     java:
       - "17"
@@ -15,4 +17,9 @@ compiler:
 
 
 cron:
-  expr: ${COMPILER_CRON_EXP:*/10 * * * * *}
+  expr: ${COMPILER_CRON_EXP:*/10 * * * * ?}
+
+quarkus:
+  http:
+    port: ${PORT:8080}
+    host: 0.0.0.0

@@ -7,6 +7,7 @@ import java.nio.file.Path;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import io.github.jelilio.config.CompilerConfig;
 import io.github.jelilio.model.Output;
@@ -47,7 +48,9 @@ public class CompilerSocket {
   @OnClose
   public void onClose(Session session) {
     logger.debug("onClose: {}", session.getId());
-    String id = (sessions.remove(session.getId())).getId();
+    String id = session.getId();
+    sessions.remove(session.getId());
+
     deleteFiles(id); // delete all associated session files
   }
 
@@ -57,6 +60,7 @@ public class CompilerSocket {
     throwable.printStackTrace();
     String id = session.getId();
     sessions.remove(id);
+
     deleteFiles(id); // delete all associated session files
   }
 
@@ -70,12 +74,12 @@ public class CompilerSocket {
 
   void deleteFiles(String sessionFilename) {
     logger.debug("deleteFiles: session: {}", sessionFilename);
-    final File downloadDirectory = new File(compilerConfig.directory());
+    final File directory = new File(compilerConfig.directory());
     final String[] langExtensions = compilerConfig.languageExt().values().toArray(new String[0]);
     final String[] extensions = Arrays.copyOf(langExtensions, langExtensions.length + 1);
     extensions[langExtensions.length] = compilerConfig.outputExt();
 
-    FileUtils.listFiles(downloadDirectory, extensions, true)
+    FileUtils.listFiles(directory, extensions, true)
         .stream().filter(file -> {
           var criteria = "%s.*?".formatted(sessionFilename);
           return file.getName().matches(criteria);
@@ -84,11 +88,14 @@ public class CompilerSocket {
 
   void deleteFiles(String language, String sessionFilename) {
     logger.debug("deleteFiles: {}, {}", language, sessionFilename);
-    final File downloadDirectory = new File(compilerConfig.directory(), language);
+    final File directory = new File(compilerConfig.directory(), language);
     final String languageExt = compilerConfig.languageExt().get(language);
     final String[] extensions = new String[]{languageExt, compilerConfig.outputExt()};
+    final String[] othersExtensions = compilerConfig.othersExt().toArray(new String[0]);
+    String[] allExtensions = Stream.concat(Arrays.stream(extensions), Arrays.stream(othersExtensions))
+        .toArray(String[]::new);
 
-    FileUtils.listFiles(downloadDirectory, extensions, true)
+    FileUtils.listFiles(directory, allExtensions, true)
         .stream().filter(file -> {
           var criteria = "%s.*?".formatted(sessionFilename);
           return file.getName().matches(criteria);
