@@ -4,7 +4,14 @@ compiler:
     java: java
     python: py
     c: c
-  output-ext: txt
+  language-out-ext:
+    java: ${COMPILER_JAVA_OUT_EXT:jtxt}
+    python: ${COMPILER_PYTHON_OUT_EXT:ptxt}
+    c: ${COMPILER_C_OUT_EXT:ctxt}
+  language-out-err-ext:
+    java: ${COMPILER_JAVA_OUT_ERR_EXT:jext}
+    python: ${COMPILER_PYTHON_OUT_ERR_EXT:pext}
+    c: ${COMPILER_C_OUT_ERR_EXT:cext}
   others-ext:
     - out
   languages:

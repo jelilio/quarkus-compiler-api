@@ -7,10 +7,10 @@ import java.nio.file.Path;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import io.github.jelilio.config.CompilerConfig;
 import io.github.jelilio.model.Output;
+import io.github.jelilio.model.OutputCode;
 import io.github.jelilio.model.Source;
 import io.quarkus.scheduler.Scheduled;
 import io.vertx.core.json.Json;
@@ -23,7 +23,10 @@ import jakarta.websocket.OnMessage;
 import jakarta.websocket.OnOpen;
 import jakarta.websocket.server.ServerEndpoint;
 import jakarta.websocket.Session;
+import org.apache.commons.collections4.BidiMap;
+import org.apache.commons.collections4.bidimap.DualHashBidiMap;
 import org.apache.commons.io.FileUtils;
+import org.apache.commons.io.FilenameUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -76,8 +79,12 @@ public class CompilerSocket {
     logger.debug("deleteFiles: session: {}", sessionFilename);
     final File directory = new File(compilerConfig.directory());
     final String[] langExtensions = compilerConfig.languageExt().values().toArray(new String[0]);
-    final String[] extensions = Arrays.copyOf(langExtensions, langExtensions.length + 1);
-    extensions[langExtensions.length] = compilerConfig.outputExt();
+    final String[] langOutExtensions = compilerConfig.languageOutExt().values().toArray(new String[0]);
+    final String[] langOutErrExtensions = compilerConfig.languageOutErrExt().values().toArray(new String[0]);
+    final String[] othersExtensions = compilerConfig.othersExt().toArray(new String[0]);
+
+    final String[] extensions = ArrayUtils.merge(langExtensions, langOutExtensions, langOutErrExtensions,
+        othersExtensions);
 
     FileUtils.listFiles(directory, extensions, true)
         .stream().filter(file -> {
@@ -88,12 +95,15 @@ public class CompilerSocket {
 
   void deleteFiles(String language, String sessionFilename) {
     logger.debug("deleteFiles: {}, {}", language, sessionFilename);
-    final File directory = new File(compilerConfig.directory(), language);
+    final File directory = new File(compilerConfig.directory());
     final String languageExt = compilerConfig.languageExt().get(language);
-    final String[] extensions = new String[]{languageExt, compilerConfig.outputExt()};
+    final String languageOutExt = compilerConfig.languageOutExt().get(language);
+    final String languageOutErrExt = compilerConfig.languageOutErrExt().get(language);
+
     final String[] othersExtensions = compilerConfig.othersExt().toArray(new String[0]);
-    String[] allExtensions = Stream.concat(Arrays.stream(extensions), Arrays.stream(othersExtensions))
-        .toArray(String[]::new);
+    final String[] languageExtensions = new String[]{languageExt, languageOutExt, languageOutErrExt};
+
+    String[] allExtensions = ArrayUtils.merge(languageExtensions, othersExtensions);
 
     FileUtils.listFiles(directory, allExtensions, true)
         .stream().filter(file -> {
@@ -112,11 +122,16 @@ public class CompilerSocket {
 
   void checkIfOutputExistAndNotEmpty() {
     final File directory = new File(compilerConfig.directory());
-    final String[] extensions = new String[]{compilerConfig.outputExt()};
+    final String[] outExtensions = compilerConfig.languageOutExt().values().toArray(new String[0]);
+    final String[] outErrExtensions = compilerConfig.languageOutErrExt().values().toArray(new String[0]);
+    final String[] extensions = ArrayUtils.merge(outExtensions, outErrExtensions);
+
+    final BidiMap<String, String> bidiMap = new DualHashBidiMap<>(compilerConfig.languageOutExt());
+    final BidiMap<String, String> bidiMapErr = new DualHashBidiMap<>(compilerConfig.languageOutErrExt());
 
     Collection<String> sessionFilenames = sessions.keySet();
     sessionFilenames.forEach(sessionFilename -> {
-      final Map<String, List<String>> outputCodes = new ConcurrentHashMap<>();
+      final Map<String, OutputCode> outputCodes = new ConcurrentHashMap<>();
 
       Set<File> outputFiles = FileUtils.listFiles(directory, extensions, true)
           .stream().filter(file -> {
@@ -125,8 +140,13 @@ public class CompilerSocket {
           }).collect(Collectors.toSet());
 
       for (File outputFile : outputFiles) {
-        String language = outputFile.getParentFile().getName();
         if (outputFile.length() > 0) {
+          String languageOutExt = FilenameUtils.getExtension(outputFile.getName());
+          String languageSuc = bidiMap.getKey(languageOutExt);
+          String languageErr = bidiMapErr.getKey(languageOutExt);
+          String language = languageSuc != null? languageSuc : languageErr;
+          boolean isError = languageSuc == null;
+
           // file not empty
           Path filename = Path.of(outputFile.getAbsolutePath());
 
@@ -136,7 +156,7 @@ public class CompilerSocket {
             List<String> output = Files.readAllLines(filename);
 
             deleteFiles(language, sessionFilename); // delete both the source and output file
-            outputCodes.put(language, output);
+            outputCodes.put(language, new OutputCode(isError, output));
           } catch (IOException e) {
             throw new RuntimeException(e);
           }
@@ -174,7 +194,7 @@ public class CompilerSocket {
     String content = source.files().get(0).content(); // Only processing the first files
 
     try (Writer writer = new BufferedWriter(new OutputStreamWriter(
-        new FileOutputStream("%s/%s/%s.%s".formatted(compilerConfig.directory(), language, id, ext)), StandardCharsets.UTF_8))) {
+        new FileOutputStream("%s/%s.%s".formatted(compilerConfig.directory(), id, ext)), StandardCharsets.UTF_8))) {
       writer.write(content);
     } catch (IOException e) {
       throw new RuntimeException(e);

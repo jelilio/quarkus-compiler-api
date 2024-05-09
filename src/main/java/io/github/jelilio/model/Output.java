@@ -5,6 +5,6 @@ import java.util.Map;
 
 public record Output (
     String sessionFilename,
-    Map<String, List<String>> languageOutput
+    Map<String, OutputCode> languageOutput
 ) {
 }

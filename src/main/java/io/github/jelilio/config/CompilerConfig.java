@@ -8,8 +8,9 @@ import java.util.Map;
 @ConfigMapping(prefix = "compiler")
 public interface CompilerConfig {
   String directory();
-  String outputExt();
   List<String> othersExt();
   Map<String, String> languageExt();
+  Map<String, String> languageOutExt();
+  Map<String, String> languageOutErrExt();
   Map<String, List<String>> languages();
 }
