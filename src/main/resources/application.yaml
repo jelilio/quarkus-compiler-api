@@ -28,5 +28,8 @@ cron:
 
 quarkus:
   http:
-    port: ${PORT:8080}
-    host: 0.0.0.0
+    port: ${PORT:8081}
+    cors:
+      ~: true
+      origins: http://localhost:5173
+      methods: GET,PUT,POST,OPTION,PUT
